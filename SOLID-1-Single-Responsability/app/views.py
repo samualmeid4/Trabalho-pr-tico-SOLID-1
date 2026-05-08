@@ -122,8 +122,6 @@ class ProdutoForm(forms.Form):
     quantidade_estoque = forms.IntegerField(label='Qtd. Estoque', required=True)
     categoria_id = forms.ChoiceField(label='Categoria', required=True)
     
-    form_data = request.POST
-    acao_form = form_data['acao']
 
     # construtor do Formulario
     def __init__(self, *args, **kwargs):
@@ -140,43 +138,44 @@ class ProdutoForm(forms.Form):
 # Métodos responsaveis por listar, incluir, alterar e excluir os Produtos.
 
     
-def metodo(request, acao=None, id=None):
-    
-    return 
+class metodo:
+    def post(request):
+        form_data = request.POST
+        sql = f'''
+            INSERT INTO Produto (
+                descricao, 
+                preco_unitario, 
+                quantidade_estoque, 
+                categoria_id
+            )
+            VALUES(
+                '{form_data['descricao']}', 
+                {form_data['preco_unitario']}, 
+                {form_data['quantidade_estoque']}, 
+                {form_data['categoria_id']}
+            );
+        '''
+        return sql
 
-def post(request, acao=None, id=None):
-    # form_data = request.POST
-    # acao_form = form_data['acao']
-    retorno = 
-    sql = f'''
-                INSERT INTO Produto (
-                    descricao, 
-                    preco_unitario, 
-                    quantidade_estoque, 
-                    categoria_id
-                )
-                VALUES(
-                    '{form_data['descricao']}', 
-                    {form_data['preco_unitario']}, 
-                    {form_data['quantidade_estoque']}, 
-                    {form_data['categoria_id']}
-                );
-            '''
-    return sql
+    def delete(request):
+        form_data = request.POST
+        sql = f"DELETE FROM Produto WHERE id = {form_data['id']}"
+        return sql
 
-def delete(request, acao=None, id=None):
-    
-    sql = f"DELETE FROM Produto WHERE id = {form_data['id']}"
-    return sql
-    
-    
-# def incluir_produtos(request):
-    
-# def salvar_produtos(request, acao=None, id=None):
-#     form_data = request.POST
-#     acao_form = form_data['acao']
-    
-    
+    def update(request):
+        form_data = request.POST
+        sql = f'''
+            UPDATE Produto 
+            SET descricao = '{form_data['descricao']}', 
+                preco_unitario = {form_data['preco_unitario']}, 
+                quantidade_estoque = {form_data['quantidade_estoque']}, 
+                categoria_id = {form_data['categoria_id']} 
+            WHERE id = {form_data['id']}
+        '''
+        return sql
+
+        
+        
 
 def produtos(request, acao=None, id=None):
     '''
@@ -223,24 +222,17 @@ def produtos(request, acao=None, id=None):
         # Salvar registro
         # 'produtos/salvar/': insere, altera ou exclui um registro
         elif acao == 'salvar':
-            # form_data = request.POST
-            # acao_form = form_data['acao']
-            acao_form = metodo(request, acao=None, id=None)
+            form_data = request.POST
+            acao_form = form_data['acao']
+            
             if acao_form == 'Inclusão':
-                sql = post(request, acao=None)
+                sql = metodo.post(request)
 
             elif acao_form == 'Exclusão':
-                sql = delete(request, acao=None, id=None)
+                sql = metodo.delete(request)
 
             else:
-                sql = f'''
-                    UPDATE Produto 
-                    SET descricao = '{form_data['descricao']}', 
-                        preco_unitario = {form_data['preco_unitario']}, 
-                        quantidade_estoque = {form_data['quantidade_estoque']}, 
-                        categoria_id = {form_data['categoria_id']} 
-                    WHERE id = {form_data['id']}
-                '''
+                sql = metodo.update(request)
 
             # cria um cursor() e executa o SQL informado
             conexao.cursor().execute(sql)
