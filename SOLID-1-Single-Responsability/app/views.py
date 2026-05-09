@@ -174,8 +174,84 @@ class metodo:
         '''
         return sql
 
+
+class Produtos:
+
+    def listar(request, conexao):
+        # define o comando SQL que será executado
+        sql = '''
+            SELECT  pro.id,
+                    pro.descricao, 
+                    pro.preco_unitario,
+                    pro.quantidade_estoque,
+                    pro.categoria_id,
+                    cat.descricao as 'categoria'
+                    
+            FROM Produto pro
+            INNER JOIN Categoria cat ON cat.id = pro.categoria_id
+            ORDER BY pro.descricao
+        '''
+        
+        # cria um cursor(), executa o SELECT informado e traz os todos os registros
+        registros = conexao.cursor().execute(sql).fetchall()
+            
+        # define a pagina a ser carregada, adicionando os registros das tabelas 
+        return render(request, 'produtos_listar.html', context={'registros': registros})
+    
+    def verifica_metodo(request, conexao):
+        form_data = request.POST
+        acao_form = form_data['acao']
+        
+        if acao_form == 'Inclusão':
+            sql = metodo.post(request)
+        elif acao_form == 'Exclusão':
+            sql = metodo.delete(request)
+        else:
+            sql = metodo.update(request)
+        # cria um cursor() e executa o SQL informado
+        conexao.cursor().execute(sql)
+        conexao.commit()
+        # Sempre retornar um HttpResponseRedirect após processar dados "POST". 
+        # Isso evita que os dados sejam postados 2 vezes caso usuário clicar "Voltar".
+        return HttpResponseRedirect( reverse("produtos") )
+    
+
+    def incluir(request):
+        return render(request, 'produtos_editar.html',
+                           context={'acao': 'Inclusão', 'form': ProdutoForm() })
+    
+    def exibir_formulario_edicao(request, conexao, id, acao):
+        sql = f'''
+                SELECT  pro.id,
+                        pro.descricao, 
+                        pro.preco_unitario,
+                        pro.quantidade_estoque,
+                        pro.categoria_id,
+                        cat.descricao as 'categoria'
+                        
+                FROM Produto pro
+                INNER JOIN Categoria cat ON cat.id = pro.categoria_id
+
+                WHERE pro.id={id}    
+            '''
+
+            # cria um cursor(), executa o SELECT para retornar o registro pelo ID
+        registro = conexao.cursor().execute(sql).fetchone()
+        registro_dict = {
+            'id': registro[0], 
+            'descricao': registro[1],
+            'preco_unitario': registro[2],
+            'quantidade_estoque': registro[3],
+            'categoria_id': registro[4],
+            'categoria': registro[5],
+        }
+        acao = 'Alteração' if acao == 'alterar' else 'Exclusão'
+        return render(request, 'produtos_editar.html', 
+                       context={'acao': acao, 'form': ProdutoForm(initial=registro_dict) })
         
         
+
+
 
 def produtos(request, acao=None, id=None):
     '''
@@ -198,90 +274,26 @@ def produtos(request, acao=None, id=None):
         # Listar registros
         # 'produtos/': Exibir a pagina de listagem
         if acao is None:
-            # define o comando SQL que será executado
-            sql = '''
-                SELECT  pro.id,
-                        pro.descricao, 
-                        pro.preco_unitario,
-                        pro.quantidade_estoque,
-                        pro.categoria_id,
-                        cat.descricao as 'categoria'
-                        
-                FROM Produto pro
-                INNER JOIN Categoria cat ON cat.id = pro.categoria_id
-
-                ORDER BY pro.descricao
-            '''
-            
-            # cria um cursor(), executa o SELECT informado e traz os todos os registros
-            registros = conexao.cursor().execute(sql).fetchall()
-
-            # define a pagina a ser carregada, adicionando os registros das tabelas 
-            return render(request, 'produtos_listar.html', context={'registros': registros})
+            return Produtos.listar(request, conexao)
         
         # Salvar registro
         # 'produtos/salvar/': insere, altera ou exclui um registro
         elif acao == 'salvar':
-            form_data = request.POST
-            acao_form = form_data['acao']
-            
-            if acao_form == 'Inclusão':
-                sql = metodo.post(request)
+            # form_data = request.POST
+            # acao_form = form_data['acao']
+            return Produtos.verifica_metodo(request, conexao)
 
-            elif acao_form == 'Exclusão':
-                sql = metodo.delete(request)
-
-            else:
-                sql = metodo.update(request)
-
-            # cria um cursor() e executa o SQL informado
-            conexao.cursor().execute(sql)
-            conexao.commit()
-
-            # Sempre retornar um HttpResponseRedirect após processar dados "POST". 
-            # Isso evita que os dados sejam postados 2 vezes caso usuário clicar "Voltar".
-            return HttpResponseRedirect( reverse("produtos") )
-        
         # inserir registro
         # 'produtos/incluir/': Exibir a pagina de inclusão
         elif acao == 'incluir':
-            return render(request, 'produtos_editar.html',
-                           context={'acao': 'Inclusão', 'form': ProdutoForm() })
+            return Produtos.incluir(request)
+            
         
         # Alterar ou excluir registro
         # 'produtos/alterar/<:id>/': Exibir a pagina de alteração
         # 'produtos/excluir/<:id>/': Exibir a pagina de exclusão
         elif acao in ['alterar', 'excluir']:
-            # seleciona o registro pelo id informado
-            sql = f'''
-                SELECT  pro.id,
-                        pro.descricao, 
-                        pro.preco_unitario,
-                        pro.quantidade_estoque,
-                        pro.categoria_id,
-                        cat.descricao as 'categoria'
-                        
-                FROM Produto pro
-                INNER JOIN Categoria cat ON cat.id = pro.categoria_id
-
-                WHERE pro.id={id}    
-            '''
-
-            # cria um cursor(), executa o SELECT para retornar o registro pelo ID
-            registro = conexao.cursor().execute(sql).fetchone()
-            registro_dict = {
-                'id': registro[0], 
-                'descricao': registro[1],
-                'preco_unitario': registro[2],
-                'quantidade_estoque': registro[3],
-                'categoria_id': registro[4],
-                'categoria': registro[5],
-            }
-
-            acao = 'Alteração' if acao == 'alterar' else 'Exclusão'
-
-            return render(request, 'produtos_editar.html', 
-                           context={'acao': acao, 'form': ProdutoForm(initial=registro_dict) })
+            return Produtos.exibir_formulario_edicao(request, conexao, id, acao)
         
         # acao INVALIDA
         else:
@@ -290,7 +302,6 @@ def produtos(request, acao=None, id=None):
     # se ocorreu algunm erro, insere a mensagem para ser exibida no contexto da página 
     except Exception as err:
         return render(request, 'home.html', context={'ERRO': err})
-
 
 # Exibe a página inicial da aplicação
 def home(request):
